@@ -1,0 +1,194 @@
+
+<!DOCTYPE html>
+<html lang="ckb">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>STC AI</title>
+  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/material-design-iconic-font/2.1.2/css/material-design-iconic-font.min.css">
+  <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+  
+  <!-- CSS for Switch Button -->
+  <style>
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 34px;
+      height: 20px;
+      margin-left: 20px;
+      margin-right: 20px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 34px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 14px;
+      width: 14px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: #4CAF50;
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(14px);
+    }
+
+    .slider.round {
+      border-radius: 34px;
+    }
+
+    .slider.round:before {
+      border-radius: 50%;
+    }
+
+    .loading-gif {
+      width: 80px;  
+      height: 50px;
+      display: block;
+      margin: 0 auto;
+    }
+
+  </style>
+</head>
+<body>
+
+<div class="chat">
+  <div class="chat-container">
+    <div id="call" class="user-bar">
+      <div class="avatar">
+        <img src="logo.png" alt="Avatar">
+      </div>
+      <div class="name">
+        <font style="padding-top:5px; font-size: 18px;">STC AI</font>
+      </div>
+       
+    </div>
+    <div class="conversation">
+      <div class="conversation-container" id="conversation-container"></div>
+      <form id="form" class="conversation-compose">
+        <div class="emoji"></div>
+        <input id="val" class="input-msg" name="input" placeholder="... پەیامەکەت بنووسە" autocomplete="off" autofocus>
+        <span class="send">
+          <div class="circle">
+            <i id="msend" class="zmdi zmdi-mail-send"></i>
+          </div>
+        </span>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+
+$(function () {
+    function getCurrentTime() {
+        return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+    }
+
+    function appendMessage(message, sender) {
+        if (!message.trim()) return; // Prevent empty messages from being shown
+
+        const time = getCurrentTime();
+        const className = sender === 'user' ? 'sent' : 'received';
+
+        // Sanitize and format message, allowing HTML for bold and line breaks
+        const formattedMessage = message.replace(/\*\*(.*?)\*\*/g, "<b>$1</b>").replace(/\n/g, "<br/>");
+
+        const messageHtml = `
+            <div class="message ${className}">
+                <div class="message-text">
+                    <span class="message-content">${formattedMessage}</span>
+                    <span class="metadata">
+                        <span class="time">${time}</span>
+                    </span>
+                </div>
+            </div>`;
+
+        $('#conversation-container').append(messageHtml);
+        $('#conversation-container').scrollTop($('#conversation-container')[0].scrollHeight);
+    }
+
+    async function sendMessage() {
+        const message = $('#val').val().trim();
+        if (!message) return;
+
+        appendMessage(message, 'user');
+        $('#val').val('');
+
+        appendMessage('<img src="https://cdn.dribbble.com/userupload/22825132/file/original-1d93807137f2e91cfbfca70c10e440dc.gif" class="loading-gif" alt="Loading...">', 'bot');
+
+        const API_URL = 'https://api-azure.botsonic.ai/v1/botsonic/generate';
+        const TOKEN = '72ba1ce5-1ee1-4b31-9ef8-0b969c6f90f5'; // Your real token
+        const chatId = crypto.randomUUID();
+
+        try {
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: {
+                    'Accept-Encoding': 'gzip, deflate',
+                    'Connection': 'keep-alive',
+                    'Content-Type': 'application/json',
+                    'User-Agent': 'python-requests/2.28.1',
+                    'accept': 'application/json',
+                    'token': TOKEN
+                },
+                body: JSON.stringify({
+                    'input_text': message,
+                    'chat_id': chatId
+                })
+            });
+
+            const data = await response.json();
+            $('.loading-gif').remove();
+
+            if (data && data.answer) {
+                appendMessage(data.answer, 'bot'); // Display the answer from Botsonic API
+            } else {
+                appendMessage('⚠️ No valid answer received from server.', 'bot');
+            }
+        } catch (error) {
+            $('.loading-gif').remove();
+            appendMessage('❌ Error: ' + error.message, 'bot');
+        }
+    }
+
+    $('#form').on('submit', function (e) {
+        e.preventDefault();
+        sendMessage();
+    });
+
+    $('#msend').on('click', function () {
+        sendMessage();
+    });
+});
+
+</script>
+
+</body>
+</html>
